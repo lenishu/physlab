@@ -1,0 +1,7 @@
+The folder prune_layers_All uses SLP normalization parameters based upon the MNIST dataset.
+This gives better (lower) CE and higher IPA and  therefore we should use this.
+Whereas:
+The folder prune_layers_ALL_Normalize-0.5 uses 0.5 as normalization parameters.
+This version gives higher CE at the same stop criteria (delta CE < .01) and overall
+lower IPA and therefore we do not use this normalization scheme.
+

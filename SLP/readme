@@ -1,0 +1,8 @@
+We found that SLP could not learn CIFAR-10 in any of the runs. Therefore, we expect that 
+the SLP will not be able to learn CIFAR-100. As a test, we performed one run for CIFAR100 at 
+each P% and as expected, found little to no learning. Therefore, we only performed one run 
+for CIFAR100 to avoid wasting computer time.
+Note: SLP seemed to learn CIFAR10 (i.e. lowered CE) only for P% between 90% to 94%, which
+is strange. Below 90% and above 94%, SLP could not learn CIFAR10. This is why there is a 
+directory in CIFAR10 specifically mapping P% 90,91,92,...,99 . We do not know the explanation 
+for this anomalous behavior.
