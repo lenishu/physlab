@@ -1,6 +1,8 @@
 test/
 CLAUDE.md
 
+.claude/
+
 **/.ipynb_checkpoints/
 
 # Large dataset files
