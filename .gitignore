@@ -1,4 +1,6 @@
 test/
+new_test/
+new_graph/
 CLAUDE.md
 
 .claude/
@@ -10,3 +12,4 @@ CLAUDE.md
 *.tar
 **/data/cifar-10-python/
 **/data/cifar-100-python/
+
