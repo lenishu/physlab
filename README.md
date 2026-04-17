@@ -1,125 +1,148 @@
-# PhysLab - Neural Network Pruning Research
+# PhysLab — Neural Network Pruning and Information Processing Ability
 
-A comprehensive research project investigating the effects of neural network pruning on learning performance across various architectures and datasets.
+> Phase transition in the Information Processing Ability (IPA) of neural networks under **random unstructured pruning**.
 
-## Overview
+## Research Idea and Motivation
 
-This project explores how **weight pruning** affects the learning capabilities of neural networks. Experiments are conducted on:
+Neural networks store information in their weights. Random unstructured pruning zeros out a fraction of those weights at initialization — an artificial analogue of random synaptic loss in biological neurons — and we measure how the network's ability to learn degrades as that fraction grows.
 
-- **Single Layer Perceptrons (SLP)** - Simple fully connected networks
-- **Convolutional Neural Networks (CNN)** - Deep learning models with convolutional layers
+The hypothesis driving this project: **there exists a critical pruning threshold beyond which IPA exhibits a sharp decline** (a phase transition), rather than a smooth monotonic falloff. By systematically sweeping pruning percentage (P%) across architectures and datasets, we aim to localize this transition and characterize how it depends on model capacity and data complexity. A secondary motivation is to ask whether IPA trends observed in artificial networks have correlates in biological neural systems, where synaptic loss is a known feature of aging and disease.
 
-## Project Structure
+## IPA Methodology
 
-```
-physlab/
-├── SLP/                          # Single Layer Perceptron experiments
-│   ├── SLP-MNIST/               # MNIST digit classification
-│   ├── SLP-FMNIST/              # Fashion-MNIST classification
-│   ├── SLP-CIFAR10/             # CIFAR-10 image classification
-│   └── SLP-CIFAR100/            # CIFAR-100 image classification
-│
-└── Convolution/                  # Convolutional network experiments
-    ├── Conv-FMNIST/             # Fashion-MNIST with CNNs
-    └── Convolutional/           # Multi-dataset CNN experiments
-        ├── Convolutional-MNIST/
-        ├── Convolutional-FMNIST/
-        ├── Convolutional-CIFAR-10/
-        └── Convolutional-CIFAR-100/
-```
+Information Processing Ability (IPA) captures both **learning effectiveness** (how much the loss actually decreases) and **learning speed** (how many batches it took to get there).
 
-## Requirements
+- **Baseline CE**: `CE_0 = ln(10)` for 10-class classification (random guessing).
+- **Asymptotic CE (`CE_asy`)**: currently computed as the mean of the last 20 cross-entropy values.
+- **Cross-Entropy Learned**: `CE_L = CE_0 − CE_asy` — how much loss the network actually removed.
+- **Batch Number Learned (`BN_L`)**: the batch index at which CE_Test reaches `CE_0 − 0.9·(CE_0 − CE_asy)`, i.e. the point where learning has effectively plateaued.
+- **IPA**: `IPA = CE_L / BN_L`.
 
-- Python 3.x
-- PyTorch
-- torchvision
-- CUDA (optional, for GPU acceleration)
+### Caveats (open questions being worked on)
+
+- The "mean of the last 20 values" definition of `CE_asy` works cleanly only for **SLP**. A universal asymptote definition for CNN (and later DenseNet) is still an open problem — curve-fitting (`A + B/(x+1)^n`) is being evaluated as a generalization.
+- The IPA formula above is expected to need a **batch-size-dependent factor**, which is still to be verified experimentally.
 
 ## Experimental Setup
 
-### Pruning Methodology
+| Component | Value |
+| --- | --- |
+| Architectures | SLP, CNN (DenseNet planned, out of scope here) |
+| Datasets | SLP: MNIST, Fashion-MNIST · CNN: MNIST, Fashion-MNIST, CIFAR-10 |
+| Pruning method | `torch.nn.utils.prune.random_unstructured`, applied at initialization and kept permanent for the run |
+| Layer options (`PRUNE_LAYERS_OPTIONS`) | `'CONV'`, `'FHL'`, `'SHL'`, `'FHL+SHL'`, `'ALL'` (SLP uses `'ALL'` only) |
+| Pruning percentages | 0 %, 10 %, …, 100 %, with fine-grained steps (82, 84, 86, 88, 92, 94, 96, 98) near the transition |
+| Batch sizes | SLP: 64, 1024, 60000 (full-batch) · CNN: 64, 1024 |
+| Runs per configuration | 100 |
+| Optimizer / loss | Adadelta / Cross-Entropy |
+| Stopping criterion | Relative change in mean `CE_Test` over consecutive 20-batch windows < 1 % |
 
-- **Pruning Type**: Random unstructured pruning on weight matrices
-- **Pruning Percentages**: 0%, 10%, 20%, ..., 100%
-- **Batch Sizes**: 64, 1024, 60000 (full-batch)
-- **Optimizer**: Adadelta
-- **Loss Function**: Cross-Entropy (CE)
+Dataset-specific normalization (MNIST: μ=0.1307, σ=0.3081; Fashion-MNIST: μ=0.2860, σ=0.3530) is used in preference to fixed 0.5 normalization — it yields lower final CE and higher IPA.
 
-### Stopping Criteria
+## Repository Structure
 
-Training stops when the average Cross-Entropy (CE) over 20 consecutive batches changes by less than 1% relative to the previous 20-batch average.
-
-### Metrics Tracked
-
-| Metric | Description |
-|--------|-------------|
-| **CE_Train** | Cross-entropy loss on training data |
-| **CE_Test** | Cross-entropy loss on test data |
-| **Accuracy** | Classification accuracy (%) |
-| **IPA** | Information Processing Accuracy |
-
-## Key Findings
-
-### SLP Experiments
-
-- ✅ **MNIST**: SLP successfully learns with various pruning levels
-- ✅ **Fashion-MNIST**: Similar learning behavior to MNIST
-- ⚠️ **CIFAR-10**: Limited learning; only learns with P% between 90-94%
-- ❌ **CIFAR-100**: Unable to learn (expected due to complexity)
-
-> **Note**: Normalization using dataset-specific parameters (mean=0.1307, std=0.3081 for MNIST) yields better CE and higher IPA than using fixed 0.5 normalization.
-
-### Convolutional Experiments
-
-- ✅ **MNIST & FMNIST**: CNN successfully learns both datasets
-- Extended "longrun" experiments show continued CE decrease with more epochs
-
-## Usage
-
-### Running an SLP Experiment
-
-```bash
-cd SLP/SLP-MNIST
-python SLP-MNIST-CE-STOP.py
+```
+physlab/
+├── SLP/                                  # SLP training scripts + analysis notebooks
+│   ├── SLP-MNIST/                        #   MNIST experiments
+│   └── SLP-FMNIST/                       #   Fashion-MNIST experiments
+├── Convolution/Convolutional/            # CNN training scripts + analysis notebooks
+│   ├── Convolutional-MNIST/
+│   ├── Convolutional-FMNIST/
+│   └── Convolutional-CIFAR-10/
+├── new_graph/Graphs/                     # All publication-ready figures (see layout below)
+├── paper/                                # Draft paper: Neural research.docx
+├── DenseNet/                             # Out of scope (not yet started)
+└── new_test/                             # Out of scope (scratch/unused)
 ```
 
-### Configuration
+Each `SLP-*` and `Convolutional-*` directory contains:
+- The training script (`.py`) that produces `.txt` raw logs into nested `prune_layers_*/p-percentage_*/batch_size_*/` directories.
+- Task-specific Jupyter notebooks that read those `.txt` files and produce the figures under `new_graph/`.
 
-Modify the following parameters in the training scripts:
+## `new_graph/Graphs/` Layout
+
+Figures are organized **model × dataset × pruning range**. The range subfolders exist because the phase transition lives in a narrow window (≈80 % for SLP, ≈90 % for CNN), so we render one "wide-view" plot (0–100 %) plus zoomed views that show the transition clearly.
+
+### SLP — transition near 80 %
+
+```
+new_graph/Graphs/SLP/{SLP-MNIST, SLP-FMNIST}/
+├── AUC_Average-CE/
+│   ├── AUC_data_{0-100, 0-80-100, 80-100}/      # per-range AUC CSVs
+│   └── AUC_graph_{0-100, 0-80-100, 80-100}/     # per-range AUC plots
+├── Average_P%-BN/                               # averaged CE / accuracy vs batch, wide view
+├── Avg_P%-BN-mapped_80-100/                     # 80–100 % zoom, remapped axis
+├── Avg_P%-BN-only_80-100/                       # 80–100 % zoom, native axis
+├── CE-Accuracy_P%-BN/
+│   └── SLP_raw_plot_{64, 1024, 60000}/          # raw per-run curves at each batch size
+└── (SLP-FMNIST only) IPA_CEL_BNL_fitting-function/   # per-run power-law fits (method under evaluation)
+```
+
+### CNN — transition near 90 %
+
+```
+new_graph/Graphs/Convolutional/{Convolution-MNIST, Convolutional-FMNIST, Convolutional_CIFAR-10}/
+├── AUC_Average-CE/ (or AUC_Average_CE/)
+│   ├── AUC_data_{0-100, 0-90-100, 90-100}/
+│   └── AUC_graph_{0-100, 0-90-100, 90-100}/
+├── Conv_Avg_Plots/
+│   └── Conv_Avg_Plots_{0-100, 0-90-100, 90-100}/
+└── Conv_Raw_Plots/
+    └── Conv_raw_plot_{64, 1024}/                # CIFAR-10 has no raw-plots folder yet
+```
+
+## File Conventions
+
+| Extension / Location | Role | Open? |
+| --- | --- | --- |
+| `.py` | Runs experiments, writes `.txt` raw logs | Yes |
+| `.ipynb` | Generates figures; each notebook has a specific role | Yes |
+| `.txt` | Raw CE / accuracy / batch-number logs | **No** (very large) |
+| Image files (anywhere — `new_graph/`, and also inside `SLP/` and `Convolution/` subtrees) | Committed figures | **No** (reference by path only) |
+
+Raw output columns (inside each `.txt`):
+```
+Current_Epoch | Batch/Total | CE_Train | Accuracy(%) | CE_Test | Batch_Number
+```
+
+## Running an Experiment
+
+Scripts expect to be run from their own directory (output paths are relative):
+
+```bash
+cd SLP/SLP-MNIST && python SLP-MNIST-CE-STOP.py
+cd SLP/SLP-FMNIST && python SLP-FMNIST-CE-STOP.py
+cd Convolution/Convolutional/Convolutional-MNIST && python convolutional-MNIST-CE-stop.py
+```
+
+Key knobs at the top of `main()` in each script:
 
 ```python
-PRUNE_LAYERS_OPTIONS = ['ALL']
+PRUNE_LAYERS_OPTIONS = ['ALL']                        # SLP: only 'ALL'; CNN adds 'CONV','FHL','SHL','FHL+SHL'
 ACCEPTABLE_PRUNE_PERCENTAGES = [i/100 for i in range(0, 110, 10)]
 ACCEPTABLE_BATCH_SIZES = [64, 60000]
 num_runs = 100
 ```
 
-## Output Format
+## Current Status and Ongoing Work
 
-Results are saved as `.txt` files with columns:
+**Complete (stopping-criteria IPA pipeline)**
+- SLP on MNIST and Fashion-MNIST: averaged CE / accuracy curves, AUC tables and plots, and raw per-run plots committed under `new_graph/Graphs/SLP/`.
+- CNN on MNIST, Fashion-MNIST, and CIFAR-10: averaged CE plots and AUC tables/plots committed under `new_graph/Graphs/Convolutional/`.
 
-```
-Current_Epoch | Batch/Total | CE_Train | Accuracy(%) | CE_Test | Batch_Number
-```
+**In progress (no results committed yet)**
+- **Curve-fitting asymptote** — fitting each per-run CE curve to `A + B/(x+1)^n` and using `A` as `CE_asy`. Goal: a universal asymptote that works for CNN (and eventually DenseNet), not just SLP. Current work lives in `SLP-MNIST/fitting_function_IPA.ipynb` and `SLP-FMNIST/` fitting notebooks.
+- **AUC-based IPA** — using area under the CE-vs-batch curve as an alternative single-scalar IPA measure.
+- **Batch-size factor** — an explicit batch-size-dependent correction to the IPA formula still to be verified experimentally.
 
-## Analysis Tools
+**Not yet committed**
+- IPA-vs-P% plots themselves (the final publication figures) — planned for the next pass once the asymptote method stabilizes.
 
-Several Jupyter notebooks are provided for visualization:
+**Notes**
+- SLP on CIFAR-10 was anomalous (learning only between P% = 90–94 %) and is not pursued further; SLP on CIFAR-100 did not learn at all and was dropped after a single sanity run.
+- `DenseNet/` and `new_test/` are intentionally excluded from this revision: DenseNet work has not started, and `new_test/` is scratch space.
 
-- `v_1_experiement_ploting_single_plot.ipynb` - Single experiment visualization
-- `v_2_creating_all_plot_for_all_batch.ipynb` - Batch-wise analysis
-- `v_3_average_of_all_the_run.ipynb` - Averaging across runs
-- `v_4_Combined_experiment_avg_and_plot.ipynb` - Combined analysis
+## Requirements
 
-Python scripts for IPA analysis:
-- `IPA_Analysis_SLP-MNIST_part_I.py`
-- `IPA_Analysis_SLP-MNIST_part_II.py`
-- `CE_vs_pruning_I.py` / `CE_vs_pruning_II.py`
-
-## License
-
-This project is for academic research purposes.
-
-## Authors
-
-Neural Research Lab
+Python 3, PyTorch, torchvision. CUDA optional.
