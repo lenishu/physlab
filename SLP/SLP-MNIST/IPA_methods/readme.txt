@@ -1,15 +1,16 @@
-New approach 
+Calculating IPA Using different methods of averaging and fitting 
 
 
-Approach 1.
+Approach 1
 At each BN, average the CE from each of the 100 raw data curves to get <CE> at each BN.
-Then fit the <CE> data using the fitting function:
+Then fit the single file of <CE> versus BN data points to get a single fitting function:
 
 (avg file - ( eg averaged_runs_p_0.0_bs_64.csv)) (done)
  
-Use the average file to create a single fitted curve. ( based on the fitting curve ) 
-
-Use the single fitting curve to calculate the IPA
+Use the single fitting function to get a single value of CEasy (i.e. A in the fitting function).
+Use this fitted CEasy to bet CEL (This is the only reason to use the fitting function).
+Once CEL is determined by using the fitting function, obtain BNL at which CEL ocurs by using the data points
+in the file containing <CE> (of raw data of 100 runs) versus BN; i.e. the first BN at which <CE> < CEL.
 
 
 Approach 2. 
